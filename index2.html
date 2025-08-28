@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Financiero Personal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b9d, #c44569);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.05);
+        }
+
+        .logo img {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            border-radius: 15px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header-buttons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .save-btn, .export-btn {
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .save-btn {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        .export-btn {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .save-btn:hover, .export-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(240, 147, 251, 0.6);
+            animation: none;
+        }
+
+        .export-btn:hover {
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.6);
+        }
+
+        .save-btn:active, .export-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .save-btn::before, .export-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .save-btn:hover::before, .export-btn:hover::before {
+            left: 100%;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+            }
+            50% {
+                box-shadow: 0 6px 20px rgba(240, 147, 251, 0.7);
+            }
+            100% {
+                box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+            }
+        }
+
+        .save-status {
+            display: inline-block;
+            margin-left: 10px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .save-status.saved {
+            background: rgba(255, 107, 157, 0.2);
+            color: #c44569;
+        }
+
+        .save-status.saving {
+            background: rgba(240, 147, 251, 0.2);
+            color: #8e44ad;
+            animation: blink 1s infinite;
+        }
+
+        .save-status.error {
+            background: rgba(231, 76, 60, 0.2);
+            color: #c0392b;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.5; }
+        }
+
+        .auto-save-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 8px 15px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            font-size: 0.8rem;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .auto-save-indicator.show {
+            opacity: 1;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: linear-gradient(135deg, #ffeef8, #f8e8ff);
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h3 {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card .amount {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .income { border-left: 4px solid #ff6b9d; }
+        .expenses { border-left: 4px solid #f8b500; }
+        .savings { border-left: 4px solid #ff9ff3; }
+        .balance { border-left: 4px solid #f368e0; }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #7f8c8d;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: #c44569;
+            border-bottom: 3px solid #ff6b9d;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-header h2 {
+            color: #c44569;
+            font-size: 1.5rem;
+        }
+
+        .add-btn {
+            background: linear-gradient(135deg, #ff6b9d, #f368e0);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.3);
+        }
+
+        .add-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: linear-gradient(135deg, #c44569, #8e44ad);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .editable {
+            background: none;
+            border: none;
+            padding: 5px;
+            width: 100%;
+            font-size: 0.9rem;
+        }
+
+        .editable:focus {
+            outline: 2px solid #ff6b9d;
+            border-radius: 4px;
+        }
+
+        .delete-btn {
+            background: linear-gradient(135deg, #ff6b9d, #c44569);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(255, 107, 157, 0.3);
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-box {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .chart-box h3 {
+            color: #c44569;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .insights {
+            background: linear-gradient(135deg, #ff9a9e, #f093fb);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .insights h3 {
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .insight-item {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .amount-positive {
+            color: #ff6b9d;
+            font-weight: 600;
+        }
+
+        .amount-negative {
+            color: #f8b500;
+            font-weight: 600;
+        }
+
+        .notification {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            border-left: 4px solid #ff6b9d;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            border-left-color: #27ae60;
+        }
+
+        .notification.error {
+            border-left-color: #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary-cards {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                padding: 20px;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .tabs {
+                flex-wrap: wrap;
+            }
+            
+            .tab {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+
+            .header-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .save-btn, .export-btn {
+                width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auto-save-indicator" id="autoSaveIndicator">💾 Auto-guardado</div>
+    <div class="notification" id="notification"></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTIv9duIv4Idmdv-2FPuAVlxTWdvKrJmkXJyMEMikrF_kO3KpRbj5yN-fNHYYt_Z1xKXSo&usqp=CAU" alt="Financial Dashboard Logo">
+            </div>
+            <h1>💰 Dashboard Financiero Personal</h1>
+            <p>Gestiona tus finanzas de manera inteligente</p>
+            <div class="header-buttons">
+                <button class="save-btn" onclick="manualSave()">✨ Guardar Datos</button>
+                <button class="export-btn" onclick="exportToExcel()">📊 Exportar a Excel</button>
+                <span id="saveStatus" class="save-status"></span>
+            </div>
+        </div>
+
+        <div class="summary-cards">
+            <div class="card income">
+                <h3>Ingresos Totales</h3>
+                <div class="amount" id="totalIncome">$0</div>
+            </div>
+            <div class="card expenses">
+                <h3>Gastos Totales</h3>
+                <div class="amount" id="totalExpenses">$0</div>
+            </div>
+            <div class="card savings">
+                <h3>Ahorros</h3>
+                <div class="amount" id="totalSavings">$0</div>
+            </div>
+            <div class="card balance">
+                <h3>Balance</h3>
+                <div class="amount" id="balance">$0</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('income')">💵 Ingresos</button>
+                <button class="tab" onclick="showTab('expenses')">💳 Gastos</button>
+                <button class="tab" onclick="showTab('savings')">🏦 Ahorros</button>
+                <button class="tab" onclick="showTab('analytics')">📊 Análisis</button>
+            </div>
+
+            <!-- Pestaña de Ingresos -->
+            <div id="income" class="tab-content active">
+                <div class="section-header">
+                    <h2>Gestión de Ingresos</h2>
+                    <button class="add-btn" onclick="addIncomeRow()">+ Agregar Ingreso</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th>Tipo</th>
+                                <th>Monto</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incomeTable">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pestaña de Gastos -->
+            <div id="expenses" class="tab-content">
+                <div class="section-header">
+                    <h2>Gestión de Gastos</h2>
+                    <button class="add-btn" onclick="addExpenseRow()">+ Agregar Gasto</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th>Categoría</th>
+                                <th>Tipo</th>
+                                <th>Monto</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expensesTable">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pestaña de Ahorros -->
+            <div id="savings" class="tab-content">
+                <div class="section-header">
+                    <h2>Gestión de Ahorros</h2>
+                    <button class="add-btn" onclick="addSavingRow()">+ Agregar Ahorro</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Meta/Objetivo</th>
+                                <th>Monto Ahorrado</th>
+                                <th>Meta Total</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="savingsTable">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pestaña de Análisis -->
+            <div id="analytics" class="tab-content">
+                <div class="insights">
+                    <h3>🔍 Insights Financieros</h3>
+                    <div id="insightsContainer">
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-box">
+                        <h3>Distribución de Gastos</h3>
+                        <canvas id="expensesChart"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <h3>Ingresos vs Gastos</h3>
+                        <canvas id="incomeExpensesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Datos de la aplicación
+        let data = {
+            income: [],
+            expenses: [],
+            savings: []
+        };
+
+        let isDataChanged = false;
+        let autoSaveInterval;
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDataFromStorage();
+            updateSummary();
+            updateCharts();
+            generateInsights();
+            
+            // Auto-guardado cada 30 segundos
+            startAutoSave();
+            
+            // Guardar antes de salir de la página
+            window.addEventListener('beforeunload', function(e) {
+                if (isDataChanged) {
+                    e.preventDefault();
+                    saveDataToStorage();
+                    e.returnValue = 'Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?';
+                }
+            });
+
+            // Detectar cambios en la página
+            document.addEventListener('input', markDataChanged);
+            document.addEventListener('change', markDataChanged);
+        });
+
+        // Marcar que los datos han cambiado
+        function markDataChanged() {
+            isDataChanged = true;
+        }
+
+        // Iniciar auto-guardado
+        function startAutoSave() {
+            autoSaveInterval = setInterval(() => {
+                if (isDataChanged) {
+                    autoSave();
+                }
+            }, 30000); // Cada 30 segundos
+        }
+
+        // Detener auto-guardado
+        function stopAutoSave() {
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
+            }
+        }
+
+        // Función de guardado manual
+        function manualSave() {
+            const saveStatus = document.getElementById('saveStatus');
+            saveStatus.textContent = 'Guardando...';
+            saveStatus.className = 'save-status saving';
+            
+            try {
+                saveDataToStorage();
+                saveStatus.textContent = '✅ Guardado exitosamente';
+                saveStatus.className = 'save-status saved';
+                showNotification('Datos guardados exitosamente', 'success');
+                isDataChanged = false;
+                
+                setTimeout(() => {
+                    saveStatus.textContent = '';
+                    saveStatus.className = 'save-status';
+                }, 3000);
+                
+            } catch (error) {
+                saveStatus.textContent = '❌ Error al guardar';
+                saveStatus.className = 'save-status error';
+                showNotification('Error al guardar los datos', 'error');
+                console.error('Error al guardar:', error);
+            }
+        }
+
+        // Auto-guardado silencioso
+        function autoSave() {
+            try {
+                saveDataToStorage();
+                showAutoSaveIndicator();
+                isDataChanged = false;
+            } catch (error) {
+                console.error('Error en auto-guardado:', error);
+            }
+        }
+
+        // Mostrar indicador de auto-guardado
+        function showAutoSaveIndicator() {
+            const indicator = document.getElementById('autoSaveIndicator');
+            indicator.classList.add('show');
+            
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 2000);
+        }
+
+        // Guardar datos en localStorage
+        function saveDataToStorage() {
+            const dataToSave = {
+                ...data,
+                lastSaved: new Date().toISOString(),
+                version: '1.0'
+            };
+            localStorage.setItem('financialDashboardData', JSON.stringify(dataToSave));
+        }
+
+        // Cargar datos desde localStorage
+        function loadDataFromStorage() {
+            try {
+                const savedData = localStorage.getItem('financialDashboardData');
+                
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    data = {
+                        income: parsedData.income || [],
+                        expenses: parsedData.expenses || [],
+                        savings: parsedData.savings || []
+                    };
+                    renderTables();
+                    showNotification('Datos cargados correctamente', 'success');
+                } else {
+                    loadSampleData();
+                    showNotification('Cargando datos de ejemplo', 'info');
+                }
+            } catch (error) {
+                console.error('Error al cargar datos:', error);
+                loadSampleData();
+                showNotification('Error al cargar datos, usando datos de ejemplo', 'error');
+            }
+        }
+
+        // Exportar a Excel
+        function exportToExcel() {
+            try {
+                showNotification('Generando archivo Excel...', 'info');
+                
+                // Crear un nuevo libro de trabajo
+                const workbook = XLSX.utils.book_new();
+                
+                // Preparar datos de ingresos
+                const incomeData = data.income.map(item => ({
+                    'Descripción': item.description,
+                    'Tipo': item.type,
+                    'Monto': item.amount,
+                    'Fecha': item.date
+                }));
+                
+                // Preparar datos de gastos
+                const expensesData = data.expenses.map(item => ({
+                    'Descripción': item.description,
+                    'Categoría': item.category,
+                    'Tipo': item.type,
+                    'Monto': item.amount,
+                    'Fecha': item.date
+                }));
+                
+                // Preparar datos de ahorros
+                const savingsData = data.savings.map(item => ({
+                    'Meta/Objetivo': item.goal,
+                    'Monto Ahorrado': item.saved,
+                    'Meta Total': item.target,
+                    'Progreso %': ((item.saved / item.target) * 100).toFixed(2),
+                    'Fecha': item.date
+                }));
+                
+                // Crear resumen
+                const totalIncome = data.income.reduce((sum, item) => sum + (item.amount || 0), 0);
+                const totalExpenses = data.expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
+                const totalSavings = data.savings.reduce((sum, item) => sum + (item.saved || 0), 0);
+                const balance = totalIncome - totalExpenses;
+                
+                const summaryData = [
+                    { 'Concepto': 'Ingresos Totales', 'Monto': totalIncome },
+                    { 'Concepto': 'Gastos Totales', 'Monto': totalExpenses },
+                    { 'Concepto': 'Ahorros Totales', 'Monto': totalSavings },
+                    { 'Concepto': 'Balance', 'Monto': balance }
+                ];
+                
+                // Crear hojas de trabajo
+                const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+                const incomeSheet = XLSX.utils.json_to_sheet(incomeData);
+                const expensesSheet = XLSX.utils.json_to_sheet(expensesData);
+                const savingsSheet = XLSX.utils.json_to_sheet(savingsData);
+                
+                // Agregar hojas al libro
+                XLSX.utils.book_append_sheet(workbook, summarySheet, "Resumen");
+                XLSX.utils.book_append_sheet(workbook, incomeSheet, "Ingresos");
+                XLSX.utils.book_append_sheet(workbook, expensesSheet, "Gastos");
+                XLSX.utils.book_append_sheet(workbook, savingsSheet, "Ahorros");
+                
+                // Generar nombre de archivo con fecha
+                const now = new Date();
+                const fileName = `Dashboard_Financiero_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.xlsx`;
+                
+                // Descargar archivo
+                XLSX.writeFile(workbook, fileName);
+                
+                showNotification('Archivo Excel descargado exitosamente', 'success');
+                
+            } catch (error) {
+                console.error('Error al exportar a Excel:', error);
+                showNotification('Error al generar el archivo Excel', 'error');
+            }
+        }
+
+        // Mostrar notificaciones
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 4000);
+        }
+
+        // Cargar datos de ejemplo
+        function loadSampleData() {
+            data.income = [
+                { id: 1, description: 'Salario', type: 'Fijo', amount: 5000, date: '2024-01-01' },
+                { id: 2, description: 'Freelance', type: 'Variable', amount: 1200, date: '2024-01-15' }
+            ];
+            
+            data.expenses = [
+                { id: 1, description: 'Alquiler', category: 'Vivienda', type: 'Fijo', amount: 1500, date: '2024-01-01' },
+                { id: 2, description: 'Electricidad', category: 'Servicios', type: 'Fijo', amount: 200, date: '2024-01-05' },
+                { id: 3, description: 'Supermercado', category: 'Alimentación', type: 'Variable', amount: 800, date: '2024-01-10' }
+            ];
+            
+            data.savings = [
+                { id: 1, goal: 'Vacaciones', saved: 2000, target: 5000, date: '2024-01-01' },
+                { id: 2, goal: 'Emergencia', saved: 3000, target: 10000, date: '2024-01-01' }
+            ];
+            
+            renderTables();
+        }
+
+        // Función para mostrar pestañas
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabName === 'analytics') {
+                setTimeout(() => {
+                    updateCharts();
+                    generateInsights();
+                }, 100);
+            }
+        }
+
+        // Renderizar tablas
+        function renderTables() {
+            renderIncomeTable();
+            renderExpensesTable();
+            renderSavingsTable();
+        }
+
+        // Renderizar tabla de ingresos
+        function renderIncomeTable() {
+            const tbody = document.getElementById('incomeTable');
+            tbody.innerHTML = '';
+            
+            data.income.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input type="text" class="editable" value="${item.description}" onchange="updateIncome(${item.id}, 'description', this.value)"></td>
+                    <td>
+                        <select class="editable" onchange="updateIncome(${item.id}, 'type', this.value)">
+                            <option value="Fijo" ${item.type === 'Fijo' ? 'selected' : ''}>Fijo</option>
+                            <option value="Variable" ${item.type === 'Variable' ? 'selected' : ''}>Variable</option>
+                        </select>
+                    </td>
+                    <td><input type="number" class="editable" value="${item.amount}" onchange="updateIncome(${item.id}, 'amount', parseFloat(this.value))"></td>
+                    <td><input type="date" class="editable" value="${item.date}" onchange="updateIncome(${item.id}, 'date', this.value)"></td>
+                    <td><button class="delete-btn" onclick="deleteIncome(${item.id})">Eliminar</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Renderizar tabla de gastos
+        function renderExpensesTable() {
+            const tbody = document.getElementById('expensesTable');
+            tbody.innerHTML = '';
+            
+            data.expenses.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input type="text" class="editable" value="${item.description}" onchange="updateExpense(${item.id}, 'description', this.value)"></td>
+                    <td>
+                        <select class="editable" onchange="updateExpense(${item.id}, 'category', this.value)">
+                            <option value="Vivienda" ${item.category === 'Vivienda' ? 'selected' : ''}>Vivienda</option>
+                            <option value="Alimentación" ${item.category === 'Alimentación' ? 'selected' : ''}>Alimentación</option>
+                            <option value="Transporte" ${item.category === 'Transporte' ? 'selected' : ''}>Transporte</option>
+                            <option value="Servicios" ${item.category === 'Servicios' ? 'selected' : ''}>Servicios</option>
+                            <option value="Entretenimiento" ${item.category === 'Entretenimiento' ? 'selected' : ''}>Entretenimiento</option>
+                            <option value="Salud" ${item.category === 'Salud' ? 'selected' : ''}>Salud</option>
+                            <option value="Educación" ${item.category === 'Educación' ? 'selected' : ''}>Educación</option>
+                            <option value="Otros" ${item.category === 'Otros' ? 'selected' : ''}>Otros</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="editable" onchange="updateExpense(${item.id}, 'type', this.value)">
+                            <option value="Fijo" ${item.type === 'Fijo' ? 'selected' : ''}>Fijo</option>
+                            <option value="Variable" ${item.type === 'Variable' ? 'selected' : ''}>Variable</option>
+                        </select>
+                    </td>
+                    <td><input type="number" class="editable" value="${item.amount}" onchange="updateExpense(${item.id}, 'amount', parseFloat(this.value))"></td>
+                    <td><input type="date" class="editable" value="${item.date}" onchange="updateExpense(${item.id}, 'date', this.value)"></td>
+                    <td><button class="delete-btn" onclick="deleteExpense(${item.id})">Eliminar</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Renderizar tabla de ahorros
+        function renderSavingsTable() {
+            const tbody = document.getElementById('savingsTable');
+            tbody.innerHTML = '';
+            
+            data.savings.forEach(item => {
+                const progress = item.target > 0 ? ((item.saved / item.target) * 100).toFixed(1) : 0;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input type="text" class="editable" value="${item.goal}" onchange="updateSaving(${item.id}, 'goal', this.value)"></td>
+                    <td><input type="number" class="editable" value="${item.saved}" onchange="updateSaving(${item.id}, 'saved', parseFloat(this.value))"></td>
+                    <td><input type="number" class="editable" value="${item.target}" onchange="updateSaving(${item.id}, 'target', parseFloat(this.value))"></td>
+                    <td><input type="date" class="editable" value="${item.date}" onchange="updateSaving(${item.id}, 'date', this.value)"></td>
+                    <td><button class="delete-btn" onclick="deleteSaving(${item.id})">Eliminar</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Funciones para agregar nuevas filas
+        function addIncomeRow() {
+            const newId = Math.max(...data.income.map(i => i.id), 0) + 1;
+            data.income.push({
+                id: newId,
+                description: 'Nueva entrada',
+                type: 'Fijo',
+                amount: 0,
+                date: new Date().toISOString().split('T')[0]
+            });
+            renderIncomeTable();
+            updateSummary();
+            markDataChanged();
+        }
+
+        function addExpenseRow() {
+            const newId = Math.max(...data.expenses.map(i => i.id), 0) + 1;
+            data.expenses.push({
+                id: newId,
+                description: 'Nuevo gasto',
+                category: 'Otros',
+                type: 'Variable',
+                amount: 0,
+                date: new Date().toISOString().split('T')[0]
+            });
+            renderExpensesTable();
+            updateSummary();
+            markDataChanged();
+        }
+
+        function addSavingRow() {
+            const newId = Math.max(...data.savings.map(i => i.id), 0) + 1;
+            data.savings.push({
+                id: newId,
+                goal: 'Nueva meta',
+                saved: 0,
+                target: 1000,
+                date: new Date().toISOString().split('T')[0]
+            });
+            renderSavingsTable();
+            updateSummary();
+            markDataChanged();
+        }
+
+        // Funciones para actualizar datos
+        function updateIncome(id, field, value) {
+            const item = data.income.find(i => i.id === id);
+            if (item) {
+                item[field] = value;
+                updateSummary();
+                updateCharts();
+                generateInsights();
+                markDataChanged();
+            }
+        }
+
+        function updateExpense(id, field, value) {
+            const item = data.expenses.find(i => i.id === id);
+            if (item) {
+                item[field] = value;
+                updateSummary();
+                updateCharts();
+                generateInsights();
+                markDataChanged();
+            }
+        }
+
+        function updateSaving(id, field, value) {
+            const item = data.savings.find(i => i.id === id);
+            if (item) {
+                item[field] = value;
+                updateSummary();
+                generateInsights();
+                markDataChanged();
+            }
+        }
+
+        // Funciones para eliminar datos
+        function deleteIncome(id) {
+            if (confirm('¿Estás seguro de que quieres eliminar este ingreso?')) {
+                data.income = data.income.filter(i => i.id !== id);
+                renderIncomeTable();
+                updateSummary();
+                updateCharts();
+                generateInsights();
+                markDataChanged();
+                showNotification('Ingreso eliminado', 'success');
+            }
+        }
+
+        function deleteExpense(id) {
+            if (confirm('¿Estás seguro de que quieres eliminar este gasto?')) {
+                data.expenses = data.expenses.filter(i => i.id !== id);
+                renderExpensesTable();
+                updateSummary();
+                updateCharts();
+                generateInsights();
+                markDataChanged();
+                showNotification('Gasto eliminado', 'success');
+            }
+        }
+
+        function deleteSaving(id) {
+            if (confirm('¿Estás seguro de que quieres eliminar este ahorro?')) {
+                data.savings = data.savings.filter(i => i.id !== id);
+                renderSavingsTable();
+                updateSummary();
+                generateInsights();
+                markDataChanged();
+                showNotification('Ahorro eliminado', 'success');
+            }
+        }
+
+        // Actualizar resumen
+        function updateSummary() {
+            const totalIncome = data.income.reduce((sum, item) => sum + (item.amount || 0), 0);
+            const totalExpenses = data.expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
+            const totalSavings = data.savings.reduce((sum, item) => sum + (item.saved || 0), 0);
+            const balance = totalIncome - totalExpenses;
+
+            document.getElementById('totalIncome').textContent = `S/ ${totalIncome.toFixed(2)}`;
+            document.getElementById('totalExpenses').textContent = `S/ ${totalExpenses.toFixed(2)}`;
+            document.getElementById('totalSavings').textContent = `S/ ${totalSavings.toFixed(2)}`;
+            document.getElementById('balance').textContent = `S/ ${balance.toFixed(2)}`;
+            document.getElementById('balance').className = `amount ${balance >= 0 ? 'amount-positive' : 'amount-negative'}`;
+        }
+
+        // Variables para los gráficos
+        let expensesChart, incomeExpensesChart;
+
+        // Actualizar gráficos
+        function updateCharts() {
+            updateExpensesChart();
+            updateIncomeExpensesChart();
+        }
+
+        function updateExpensesChart() {
+            const ctx = document.getElementById('expensesChart').getContext('2d');
+            
+            if (expensesChart) {
+                expensesChart.destroy();
+            }
+
+            const categories = {};
+            data.expenses.forEach(expense => {
+                categories[expense.category] = (categories[expense.category] || 0) + (expense.amount || 0);
+            });
+
+            const hasData = Object.keys(categories).length > 0;
+
+            expensesChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: hasData ? Object.keys(categories) : ['Sin datos'],
+                    datasets: [{
+                        data: hasData ? Object.values(categories) : [1],
+                        backgroundColor: hasData ? [
+                            '#ff6b9d',
+                            '#f093fb',
+                            '#ff9a9e',
+                            '#ffeef8',
+                            '#f368e0',
+                            '#c44569',
+                            '#4facfe',
+                            '#00f2fe'
+                        ] : ['#e0e0e0']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateIncomeExpensesChart() {
+            const ctx = document.getElementById('incomeExpensesChart').getContext('2d');
+            
+            if (incomeExpensesChart) {
+                incomeExpensesChart.destroy();
+            }
+
+            const totalIncome = data.income.reduce((sum, item) => sum + (item.amount || 0), 0);
+            const totalExpenses = data.expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+            incomeExpensesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Ingresos', 'Gastos'],
+                    datasets: [{
+                        label: 'Monto (S/)',
+                        data: [totalIncome, totalExpenses],
+                        backgroundColor: [
+                            '#ff6b9d',
+                            '#f8b500'
+                        ],
+                        borderColor: [
+                            '#c44569',
+                            '#e67e22'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#f0f0f0'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Generar insights
+        function generateInsights() {
+            const container = document.getElementById('insightsContainer');
+            const insights = [];
+
+            const totalIncome = data.income.reduce((sum, item) => sum + (item.amount || 0), 0);
+            const totalExpenses = data.expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
+            const balance = totalIncome - totalExpenses;
+            const savingsRate = totalIncome > 0 ? ((balance / totalIncome) * 100) : 0;
+
+            // Insight de tasa de ahorro
+            if (savingsRate > 20) {
+                insights.push(`🎉 ¡Excelente! Tu tasa de ahorro es del ${savingsRate.toFixed(1)}%. Estás en el camino correcto hacia la libertad financiera.`);
+            } else if (savingsRate > 10) {
+                insights.push(`📈 Tu tasa de ahorro es del ${savingsRate.toFixed(1)}%. Es buena, pero considera aumentarla al 20% para mejorar tu salud financiera.`);
+            } else if (savingsRate > 0) {
+                insights.push(`💡 Tu tasa de ahorro es del ${savingsRate.toFixed(1)}%. Intenta reducir algunos gastos para alcanzar al menos el 10%.`);
+            } else {
+                insights.push(`⚠️ Estás gastando más de lo que ingresas. Es crucial revisar y reducir tus gastos inmediatamente.`);
+            }
+
+            // Insight de categoría de mayor gasto
+            const categoryTotals = {};
+            data.expenses.forEach(expense => {
+                categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + (expense.amount || 0);
+            });
+            
+            if (Object.keys(categoryTotals).length > 0) {
+                const maxCategory = Object.entries(categoryTotals).reduce((a, b) => a[1] > b[1] ? a : b, ['', 0]);
+                if (maxCategory[0]) {
+                    const percentage = ((maxCategory[1] / totalExpenses) * 100);
+                    insights.push(`💰 Tu mayor gasto es en ${maxCategory[0]} (S/ ${maxCategory[1].toFixed(2)}), representando el ${percentage.toFixed(1)}% de tus gastos totales.`);
+                }
+            }
+
+            // Insight de metas de ahorro
+            const savingsProgress = data.savings.map(saving => ({
+                goal: saving.goal,
+                progress: saving.target > 0 ? ((saving.saved / saving.target) * 100) : 0,
+                remaining: saving.target - saving.saved
+            }));
+            
+            savingsProgress.forEach(saving => {
+                if (saving.progress >= 100) {
+                    insights.push(`🏆 ¡Felicitaciones! Has completado tu meta de ${saving.goal}.`);
+                } else if (saving.progress >= 75) {
+                    insights.push(`🎯 Estás muy cerca de completar tu meta de ${saving.goal} (${saving.progress.toFixed(1)}%). Solo faltan S/ ${saving.remaining.toFixed(2)}.`);
+                } else if (saving.progress >= 50) {
+                    insights.push(`📊 Has alcanzado el ${saving.progress.toFixed(1)}% de tu meta de ${saving.goal}. ¡Sigue así!`);
+                }
+            });
+
+            // Insight de gastos fijos vs variables
+            const fixedExpenses = data.expenses.filter(e => e.type === 'Fijo').reduce((sum, e) => sum + (e.amount || 0), 0);
+            const variableExpenses = data.expenses.filter(e => e.type === 'Variable').reduce((sum, e) => sum + (e.amount || 0), 0);
+            
+            if (totalExpenses > 0) {
+                const fixedPercentage = (fixedExpenses / totalExpenses) * 100;
+                if (fixedPercentage > 60) {
+                    insights.push(`📋 Tus gastos fijos representan el ${fixedPercentage.toFixed(1)}% del total. Considera renegociar algunos servicios para reducir este porcentaje.`);
+                } else if (fixedPercentage < 30) {
+                    insights.push(`✨ Solo el ${fixedPercentage.toFixed(1)}% de tus gastos son fijos. Tienes buena flexibilidad financiera.`);
+                }
+            }
+
+            // Si no hay insights, mostrar mensaje motivacional
+            if (insights.length === 0) {
+                insights.push('📊 Agrega más datos para recibir insights personalizados sobre tu situación financiera.');
+            }
+
+            container.innerHTML = insights.map(insight => 
+                `<div class="insight-item">${insight}</div>`
+            ).join('');
+        }
+    </script>
+</body>
+</html>
